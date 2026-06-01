@@ -43,11 +43,11 @@ export const lrcIndicatorScript = `
         if (checkedTracks.has(key)) {
             return checkedTracks.get(key);
         }
-        
+
         if (!window.soundcloudAPI || !window.soundcloudAPI.checkLyrics) {
             return false;
         }
-        
+
         try {
             const hasLyrics = await window.soundcloudAPI.checkLyrics(artist, track);
             checkedTracks.set(key, hasLyrics);
@@ -60,12 +60,12 @@ export const lrcIndicatorScript = `
     function extractTrackInfo(element) {
         const titleEl = element.querySelector('.soundTitle__title span, .trackItem__trackTitle, .chartTrack__title span');
         const artistEl = element.querySelector('.soundTitle__username, .trackItem__username, .chartTrack__username');
-        
+
         if (!titleEl) return null;
-        
+
         const title = titleEl.textContent?.trim() || '';
         const artist = artistEl?.textContent?.trim() || '';
-        
+
         return { title, artist };
     }
 
@@ -80,12 +80,12 @@ export const lrcIndicatorScript = `
             }
             return;
         }
-        
+
         if (!hasLyrics) return;
-        
+
         const titleEl = element.querySelector('.soundTitle__title, .trackItem__trackTitle, .chartTrack__title');
         if (!titleEl) return;
-        
+
         const indicator = document.createElement('span');
         indicator.className = 'lrc-indicator';
         indicator.textContent = 'LRC';
@@ -103,7 +103,7 @@ export const lrcIndicatorScript = `
     async function processElement(element) {
         const info = extractTrackInfo(element);
         if (!info || !info.title) return;
-        
+
         const hasLyrics = await checkLyrics(info.artist, info.title);
         addIndicator(element, hasLyrics);
     }
@@ -117,7 +117,7 @@ export const lrcIndicatorScript = `
             '.playableTile',
             '.searchList__item'
         ];
-        
+
         selectors.forEach(selector => {
             document.querySelectorAll(selector).forEach(el => {
                 if (!el.dataset.lrcChecked) {

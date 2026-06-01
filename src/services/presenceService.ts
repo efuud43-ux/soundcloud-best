@@ -76,14 +76,12 @@ export class PresenceService {
         this.displayMode = store.get('displayMode', 'rpc') as string;
         this.customStatusService.setEnabled(this.displayMode === 'custom' || this.displayMode === 'combined');
 
-        // Initialize combined display settings
         this.combinedSettings = {
             mode: store.get('combinedDisplayMode', 'both') as 'rpc' | 'status' | 'both',
             rpcLines: store.get('rpcLinesCount', 2) as number,
             statusLines: store.get('statusLinesCount', 1) as number,
         };
 
-        // Initialize LyricsDisplayService with config from store
         this.lyricsDisplayService = new LyricsDisplayService({
             mode: this.rpcLyricsMode as 'line' | 'multiline' | 'karaoke' | 'karaoke_custom',
             karaokeCustomText: this.karaokeCustomText,
@@ -156,7 +154,7 @@ export class PresenceService {
                     const isNegative = time.trim().startsWith('-');
                     const raw = isNegative ? time.trim().slice(1) : time.trim();
                     const parts = raw.split(':').map((p) => Number(p));
-                    // Support H:MM:SS or MM:SS
+
                     let seconds = 0;
                     for (const part of parts) {
                         seconds = seconds * 60 + (isNaN(part) ? 0 : part);
@@ -169,7 +167,7 @@ export class PresenceService {
                 const parsedTotal = parseTimeToMs(totalTime);
                 const totalMilliseconds =
                     parsedTotal < 0
-                        ? elapsedMilliseconds + Math.abs(parsedTotal) // total time = elapsed + remaining
+                        ? elapsedMilliseconds + Math.abs(parsedTotal) 
                         : parsedTotal;
 
                 if (totalMilliseconds <= 0) return;
@@ -180,12 +178,8 @@ export class PresenceService {
 
                 const now = Date.now();
 
-                // Calculate expected start time based on current elapsed time
-                // Calculate expected start time based on current elapsed time
                 const expectedStartTime = now - elapsedMilliseconds;
 
-                // Check if track changed OR if the detailed timing deviated significantly (> 2s)
-                // This handles looping (elapsed jumps back to 0) and seeking
                 let forceUpdate = false;
                 if (
                     this.lastTrackUrl !== currentTrack.url ||
@@ -313,25 +307,22 @@ export class PresenceService {
                     }
                 }
 
-                // If lyrics timer is running and we have lyrics, let the timer handle RPC updates
-                // This prevents conflicts between updatePresence and the timer
                 if (this.lyricsUpdateInterval && this.lyricsService.isHasLyrics()) {
-                    // Only send on force update (track change/seek)
+
                     if (forceUpdate) {
                         await this.setActivitySafe(activity, true);
                     }
-                    // Otherwise skip - timer will handle it
+
                 } else {
                     await this.setActivitySafe(activity, forceUpdate);
                 }
             } else {
-                // Should we clear or show paused state?
-                // User requested to show paused state with track info
+
                 this.stopLyricsTimer();
                 await this.clearCustomStatus();
 
                 if (this.store.get('discordRichPresence')) {
-                    // Parse track info even if paused to show correct details
+
                     const normalizedTrack = normalizeTrackInfo(
                         trackInfo.title,
                         trackInfo.author,
@@ -345,7 +336,7 @@ export class PresenceService {
                     };
 
                     const artworkUrl = trackInfo.artwork;
-                    // Format like lyrics: "Artist - Title" in details, "♪ PAUSED" in state
+
                     let detailsText = `${currentTrack.author} - ${currentTrack.title}`;
                     if (detailsText.length > 128) {
                         detailsText = detailsText.substring(0, 125) + '...';
@@ -401,7 +392,6 @@ export class PresenceService {
                     }
                 }
 
-                // Fallback to original idling behavior if no track info or if desired
                 if (this.displayWhenIdling && this.store.get('discordRichPresence')) {
                     await this.setActivitySafe(
                         {
@@ -479,9 +469,8 @@ export class PresenceService {
         this.displayMode = mode;
         this.customStatusService.setEnabled(mode === 'custom' || mode === 'combined');
 
-        // Автоматически активируем комбинированный режим при выборе "combined"
         if (mode === 'combined') {
-            // Устанавливаем режим "both" для комбинированного отображения
+
             this.setCombinedDisplaySettings({ mode: 'both' });
         }
     }
@@ -533,14 +522,12 @@ export class PresenceService {
         const now = Date.now();
         let effectiveInterval = 0;
 
-        // Моментальные обновления для статуса
-        const baseInterval = 0; // Без задержек
+        const baseInterval = 0; 
 
-        // Умное управление интервалами для статуса
         if (!statusToSend) {
             return;
-            // Минимальная задержка только при очень большой очереди
-            effectiveInterval = 50; // 0.05 секунды максимум
+
+            effectiveInterval = 50; 
         }
 
         this.statusQueueInFlight = true;
@@ -580,7 +567,7 @@ export class PresenceService {
                     })
                     .catch((error) => {
                         console.error('[StatusQueue] Failed to update custom status:', error);
-                        // При ошибке не возвращаем в очередь, чтобы избежать зацикливания
+
                     });
             }
         }
@@ -820,7 +807,6 @@ export class PresenceService {
         );
         console.log('[PresenceService] combinedSettings.mode:', this.combinedSettings.mode);
 
-        // Проверяем, нужно ли отправлять статус
         const shouldSendStatus =
             (this.displayMode === 'custom' ||
                 (this.displayMode === 'combined' &&
@@ -864,23 +850,12 @@ export class PresenceService {
 
         let lastQueuedLineIdx = -1;
         let lastQueuedKaraokeState = '';
-        // Текст последней реально отправленной строки лирики (нормализованный).
-        // Если следующая строка LRC буквально совпадает с предыдущей —
-        // не шлём в RPC дубликат (пользователь и так видит ту же строку).
-        // Сбрасывается при смене трека / seek (см. `forceUpdate` блок),
-        // так как `startLyricsTimer` пересоздаёт это замыкание.
+
         let lastQueuedRawLineText: string | null = null;
-        // Для karaoke-режимов: запоминаем idx последней «принятой» строки,
-        // чтобы при попадании на повторно одинаковую строку полностью
-        // пропустить её анимацию вместо повторного проигрывания.
+
         let karaokeLastSeenLineIdx = -2;
         let karaokeSkipCurrentLine = false;
-        // После reset (смена трека / seek > 2с) lastQueuedLineIdx = -1, и
-        // первая итерация таймера в режиме line/multiline пыталась запушить
-        // в RPC ВСЕ строки от начала трека до текущей позиции — пользователь
-        // видел «сброс» и спам строк с начала. Этот флаг ставит baseline в
-        // текущий idx-1 на первом тике, чтобы дальше шли только следующие
-        // (ещё не показанные) строки.
+
         let baselineEstablished = false;
 
         const buildShortState = () =>
@@ -977,16 +952,12 @@ export class PresenceService {
                 const idx = this.lyricsService.getLineIndex(realElapsed);
                 const isKaraoke = this.rpcLyricsMode === 'karaoke' || this.rpcLyricsMode === 'karaoke_custom';
 
-                // Первая итерация после reset: подтягиваем baseline к
-                // текущей позиции, чтобы не спамить пропущенные строки в RPC.
                 if (!baselineEstablished) {
                     baselineEstablished = true;
                     if (idx >= 0 && !isKaraoke) {
                         lastQueuedLineIdx = idx - 1;
                     }
-                    // updatePresence() уже отправил активность с текстом
-                    // текущей строки, поэтому seed-им lastQueuedRawLineText —
-                    // если следующая LRC-строка идентична, пропустим её.
+
                     if (idx >= 0) {
                         const baselineLine = this.lyricsService.getLyricAtIndex(idx);
                         const baselineText = baselineLine ? (baselineLine.text || '').trim() : '';
@@ -1005,10 +976,6 @@ export class PresenceService {
                         const prevLine = this.lyricsService.getLyricAtIndex(idx - 1);
                         const nextLine = this.lyricsService.getLyricAtIndex(idx + 1);
 
-                        // При переходе на новую LRC-строку проверяем — не
-                        // совпадает ли её текст с предыдущей. Если совпадает,
-                        // помечаем «пропустить» и не эмитим karaoke-кадры
-                        // вообще: пользователь продолжает видеть ту же строку.
                         if (idx !== karaokeLastSeenLineIdx) {
                             karaokeLastSeenLineIdx = idx;
                             const rawText = currentLine ? (currentLine.text || '').trim() : '';
@@ -1050,10 +1017,6 @@ export class PresenceService {
                                 const queuedLine = queuedLines[offset];
                                 const rawText = (queuedLine.text || '').trim();
 
-                                // Дедуп: если новая LRC-строка дословно
-                                // совпадает с уже отправленной — не шлём
-                                // ещё одно обновление в RPC, в Discord и так
-                                // отображается этот же текст.
                                 if (rawText && rawText === lastQueuedRawLineText) {
                                     continue;
                                 }
@@ -1088,14 +1051,11 @@ export class PresenceService {
         );
         return;
 
-        // Отслеживание последней отображенной строки (что видит пользователь в Discord)
         let lastDisplayedLineIdx = -1;
         let lastDisplayedKaraokeState = '';
 
-        // Отслеживание ожидающих обновлений для отправки
         let pendingActivity: (SetActivity & { name?: string; statusDisplayType?: number }) | null = null;
 
-        // Очистка очередей при запуске нового таймера
         this.clearQueues();
 
         this.lyricsUpdateInterval = setInterval(
@@ -1123,7 +1083,6 @@ export class PresenceService {
                 const currentLine = this.lyricsService.getLyricAtIndex(idx);
                 const nextLine = this.lyricsService.getLyricAtIndex(idx + 1);
 
-                // Построение текущего состояния
                 let stateText = `${this.shortenString(currentTrack.author)}${currentTrack.author.length < 2 ? '⠀⠀' : ''}`;
                 let detailsText = `${this.shortenString(currentTrack.title)}${currentTrack.title.length < 2 ? '⠀⠀' : ''}`;
 
@@ -1145,7 +1104,6 @@ export class PresenceService {
 
                 const isKaraoke = this.rpcLyricsMode === 'karaoke' || this.rpcLyricsMode === 'karaoke_custom';
 
-                // Проверка наличия нового контента для отображения
                 let hasNewContent = false;
                 if (isKaraoke) {
                     hasNewContent = stateText !== lastDisplayedKaraokeState;
@@ -1153,9 +1111,8 @@ export class PresenceService {
                     hasNewContent = idx !== lastDisplayedLineIdx && idx >= 0;
                 }
 
-                // Если есть новый контент, обновляем ожидающие данные
                 if (hasNewContent) {
-                    // Обновляем отслеживание отображенного контента
+
                     if (isKaraoke) {
                         lastDisplayedKaraokeState = stateText;
                     } else {
@@ -1165,13 +1122,11 @@ export class PresenceService {
                     const startTimestamp = this.trackStartTimestamp;
                     const endTimestamp = startTimestamp + totalMilliseconds;
 
-                    // Интеграция комбинированного отображения
                     if (currentLine && currentLine.text && this.displayMode === 'combined') {
-                        // Обновляем комбинированное отображение с умным распределением текста
+
                         await this.updateCombinedDisplay(stateText);
                     }
 
-                    // Определяем текст для RPC в зависимости от режима
                     let rpcStateText = stateText;
                     if (this.displayMode === 'combined') {
                         if (
@@ -1180,7 +1135,7 @@ export class PresenceService {
                         ) {
                             rpcStateText = this.currentLyricsBuffer[0];
                         } else if (this.combinedSettings.mode === 'status') {
-                            // В режиме "status only" показываем обычный текст в RPC
+
                             rpcStateText = stateText;
                         }
                     }
@@ -1209,41 +1164,36 @@ export class PresenceService {
                     }
 
                     if (lyricsToCustomStatus) {
-                        // В режиме "both" не меняем RPC, только отправляем статус
+
                         if (
                             this.displayMode === 'custom' ||
                             (this.displayMode === 'combined' && this.combinedSettings.mode === 'status')
                         ) {
-                            // Только в режимах custom или status меняем RPC на простой формат
+
                             pendingActivity.details = `${this.shortenString(currentTrack.title)}${currentTrack.title.length < 2 ? '⠀⠀' : ''}`;
                             pendingActivity.state = `${this.shortenString(currentTrack.author)}${currentTrack.author.length < 2 ? '⠀⠀' : ''}`;
                         }
                     }
 
-                    // Добавление в очередь RPC для обработки с интервалом
                     this.rpcQueue.push(pendingActivity);
 
-                    // Обработка различных режимов отображения
                     if (this.displayMode === 'combined') {
-                        // В комбинированном режиме обрабатываем очередь статуса
+
                         if (this.combinedSettings.mode === 'status' || this.combinedSettings.mode === 'both') {
-                            // Обрабатываем очередь статуса
+
                             this.processStatusQueue();
                         }
                     } else if (lyricsToCustomStatus && currentLine && currentLine.text) {
-                        // Стандартный режим custom - отправляем весь текст в статус
+
                         const customText = stateText.startsWith('♪') ? stateText.replace('♪ ', '') : stateText;
                         await this.updateCustomStatus(customText);
                     }
                 }
 
-                // Обработка очереди RPC с учетом интервала обновления
                 this.processRpcQueue();
 
-                // Обработка очереди статуса с отдельным интервалом
                 this.processStatusQueue();
 
-                // Оптимизация очередей для предотвращения переполнения памяти
                 this.optimizeQueues();
             },
             this.rpcLyricsMode === 'karaoke' || this.rpcLyricsMode === 'karaoke_custom' ? 100 : 250,
@@ -1284,7 +1234,6 @@ export class PresenceService {
     private async setActivitySafe(activity: any, force: boolean = false): Promise<boolean> {
         const now = Date.now();
 
-        // Моментальные обновления без задержек
         const updateInterval = 0;
         const timeSinceLast = now - this.lastRpcUpdate;
 

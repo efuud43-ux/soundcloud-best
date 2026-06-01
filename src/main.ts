@@ -31,7 +31,6 @@ export const RESOURCES_PATH = app.isPackaged
     : path.join(__dirname, '../assets');
 console.log(`Resources path: ${RESOURCES_PATH}`);
 
-// Store configuration
 const store = new Store({
     defaults: {
         adBlocker: false,
@@ -69,7 +68,6 @@ const store = new Store({
 
 let isDarkTheme = store.get('theme') !== 'light';
 
-// Global variables
 let mainWindow: BrowserWindow;
 let notificationManager: NotificationManager;
 let settingsManager: SettingsManager;
@@ -85,12 +83,11 @@ let shortcutService: ShortcutService;
 let tray: Tray | null = null;
 let isQuitting = false;
 const devMode = process.argv.includes('--dev');
-// Header height for header BrowserView
+
 const HEADER_HEIGHT = 32;
-// macOS check
+
 const isMas = process.mas === true;
 
-// Add missing property to app
 declare global {
     namespace NodeJS {
         interface Global {
@@ -99,7 +96,6 @@ declare global {
     }
 }
 
-// Multiple startup check
 if (!isMas) {
     const gotTheLock = app.requestSingleInstanceLock();
     if (!gotTheLock) {
@@ -108,18 +104,15 @@ if (!isMas) {
     }
 }
 
-// Extend app with custom property
 Object.defineProperty(app, 'isQuitting', {
     value: false,
     writable: true,
     configurable: true,
 });
 
-// Display settings
 let displayWhenIdling = store.get('displayWhenIdling') as boolean;
 let displaySCSmallIcon = store.get('displaySCSmallIcon') as boolean;
 
-// Update handling
 function setupUpdater() {
     if (!store.get('autoUpdaterEnabled', true)) {
         console.log('Auto-updater disabled by user setting');
@@ -140,14 +133,12 @@ function setupUpdater() {
     autoUpdater.checkForUpdates();
 }
 
-// Tray setup
 function setupTray() {
     if (tray) {
         tray.destroy();
         tray = null;
     }
 
-    // Create tray icon
     const iconPath = path.join(
         RESOURCES_PATH,
         'icons',
@@ -155,13 +146,11 @@ function setupTray() {
     );
     const icon = nativeImage.createFromPath(iconPath);
 
-    // Resize icon for tray (16x16 is standard for most systems)
     const trayIcon = icon.resize({ width: 16, height: 16 });
 
     tray = new Tray(trayIcon);
     tray.setToolTip('SoundCloud RPC');
 
-    // Create tray menu
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'SoundCloud',
@@ -191,7 +180,6 @@ function setupTray() {
 
     tray.setContextMenu(contextMenu);
 
-    // Handle tray icon click (show window)
     tray.on('click', () => {
         if (mainWindow) {
             mainWindow.show();
@@ -199,7 +187,6 @@ function setupTray() {
         }
     });
 
-    // Handle tray icon double-click (show window)
     tray.on('double-click', () => {
         if (mainWindow) {
             mainWindow.show();
@@ -208,7 +195,6 @@ function setupTray() {
     });
 }
 
-// Update the language when retrieved from the web page
 async function getLanguage() {
     if (!contentView) return;
     const langInfo = await contentView.webContents.executeJavaScript(`
@@ -223,7 +209,6 @@ async function getLanguage() {
     translationService.setLanguage(langInfo.lang);
 }
 
-// Browser window configuration
 function createBrowserWindow(windowState: any): BrowserWindow {
     const window = new BrowserWindow({
         width: windowState.width,
@@ -279,7 +264,6 @@ function createBrowserWindow(windowState: any): BrowserWindow {
     return window;
 }
 
-// Track info polling
 let lastTrackInfo: TrackInfo = {
     title: '',
     author: '',
@@ -382,7 +366,6 @@ function setupWindowControls() {
         }
     });
 
-    // Navigation handlers
     ipcMain.on('navigate-back', () => {
         if (contentView && contentView.webContents.navigationHistory.canGoBack()) {
             contentView.webContents.navigationHistory.goBack();
@@ -422,17 +405,14 @@ function setupWindowControls() {
         applyThemeToContent(isDarkTheme);
     });
 
-    // Handle is-maximized requests
     ipcMain.handle('is-maximized', () => {
         return mainWindow ? mainWindow.isMaximized() : false;
     });
 
-    // Handle minimize to tray setting
     ipcMain.handle('get-minimize-to-tray', () => {
         return store.get('minimizeToTray', true);
     });
 
-    // Handle navigation controls enabled setting
     ipcMain.handle('get-navigation-controls-enabled', () => {
         return store.get('navigationControlsEnabled', false);
     });
@@ -443,10 +423,9 @@ function setupWindowControls() {
 let headerView: BrowserView | null;
 let contentView: BrowserView;
 
-// Main initialization
 async function init() {
     setupUpdater();
-    setupTray(); // Call setupTray here
+    setupTray(); 
 
     if (process.platform === 'darwin') setupDarwinMenu();
     else Menu.setApplicationMenu(null);
@@ -456,7 +435,6 @@ async function init() {
 
     windowState.manage(mainWindow);
 
-    // Handle window close event for minimize to tray
     mainWindow.on('close', (event) => {
         const minimizeToTray = store.get('minimizeToTray', true);
         if (minimizeToTray && !isQuitting) {
@@ -465,7 +443,6 @@ async function init() {
         }
     });
 
-    // Handle window minimize event
     mainWindow.on('minimize', () => {
         const minimizeToTray = store.get('minimizeToTray', true);
         if (minimizeToTray) {
@@ -513,10 +490,9 @@ async function init() {
         });
     }
 
-    // Initialize services
     translationService = new TranslationService();
     themeService = new ThemeService(store);
-    // Hot-reload custom theme CSS when files change
+
     themeService.onCustomThemeUpdated(() => {
         applyThemeToContent(isDarkTheme);
     });
@@ -539,7 +515,6 @@ async function init() {
         }
     });
 
-    // Add settings toggle handler
     ipcMain.on('toggle-settings', () => {
         settingsManager.toggle();
     });
@@ -552,7 +527,6 @@ async function init() {
     setupTranslationHandlers();
     setupAudioHandler();
 
-    // Provide current track info to settings preview on demand
     ipcMain.handle('get-current-track', () => {
         return lastTrackInfo;
     });
@@ -565,11 +539,6 @@ async function init() {
         return lyricsService.isHasLyrics();
     });
 
-    // Полный синхронизированный текст текущего трека для экранного оверлея
-    // (новый дизайн). Переиспользует тот же LyricsService, что и RPC.
-    // Не блокируемся на полном поиске: сначала отдаём кэш, иначе запускаем
-    // fetch (dedup-safe) и ждём только короткое окно под быстрый путь; что
-    // не успело — оверлей дозапросит поллингом (pending).
     const forcedLyricsKeys = new Set<string>();
     ipcMain.handle('soundcloud:get-lyrics', async (_event, data: { artist: string; track: string; source?: string }) => {
         if (!presenceService) return { synced: false, lines: [] };
@@ -584,8 +553,6 @@ async function init() {
             return null;
         };
 
-        // Явный источник: пробуем провайдера; если он вернул пусто — фолбэк
-        // на общий кэш (там, скорее всего, уже есть текст, найденный для RPC).
         if (data.source === 'lrclib' || data.source === 'youtube') {
             const direct = data.source === 'lrclib'
                 ? await lyricsService.lrclibGetLyrics(data.artist, data.track)
@@ -596,7 +563,6 @@ async function init() {
             return { synced: false, lines: [] };
         }
 
-        // Auto: кэш мгновенно, иначе короткое ожидание поиска.
         let result = collect();
         const key = (data.artist + '|' + data.track).toLowerCase();
         if (result) {
@@ -604,9 +570,6 @@ async function init() {
             return result;
         }
 
-        // ВАЖНО: force=true сбрасывает кэш в начале fetchLyrics. Не используем
-        // force, если cache мог быть наполнен — иначе сотрём то, что RPC нашёл.
-        // Force нужен только если presenceService уже метил трек как пустой.
         const force = !lyricsService.isFetching() && !forcedLyricsKeys.has(key);
         if (force) forcedLyricsKeys.add(key);
 
@@ -627,14 +590,6 @@ async function init() {
         return true;
     });
 
-    /**
-     * Скачивание трека. На вход получает уже разрешённый CDN URL прогрессивного
-     * mp3-стрима (это делает renderer-side скрипт через api-v2 SoundCloud) и
-     * желаемое имя файла. Здесь только save-pipeline через session.downloadURL.
-     *
-     * Используем once('will-download') чтобы перехватить DownloadItem и
-     * подставить нужный savePath — иначе Electron возьмёт имя из URL (UUID).
-     */
     ipcMain.handle('soundcloud:download-file', async (_event, data: { url: string; filename: string }) => {
         if (!contentView || !contentView.webContents) {
             return { ok: false, reason: 'no-webcontents' };
@@ -654,7 +609,6 @@ async function init() {
         const ext = baseName.toLowerCase().endsWith('.mp3') ? '' : '.mp3';
         let savePath = path.join(downloadsDir, baseName + ext);
 
-        // Если файл с таким именем уже есть — добавляем суффикс (1), (2)...
         let counter = 1;
         const fs = require('fs');
         while (fs.existsSync(savePath)) {
@@ -698,8 +652,6 @@ async function init() {
                 settle({ ok: false, reason: 'download-trigger-failed' });
             }
 
-            // Защита от зависания: если за 90 секунд скачивание не стартовало
-            // или висит, откатываем listener и сообщаем об ошибке.
             setTimeout(() => {
                 if (!settled) {
                     sess.removeListener('will-download', handler);
@@ -709,10 +661,6 @@ async function init() {
         });
     });
 
-    /**
-     * Сохранение уже собранного файла (HLS-сегменты, склеенные в mp3 на стороне
-     * renderer и переданные сюда base64). Пишем в Downloads с уникальным именем.
-     */
     ipcMain.handle('soundcloud:save-file', async (_event, data: { base64: string; filename: string }) => {
         if (!data || !data.base64) {
             return { ok: false, reason: 'no-data' };
@@ -745,7 +693,6 @@ async function init() {
         }
     });
 
-    // Configure session
     const session = contentView.webContents.session;
     const userAgent =
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -771,11 +718,9 @@ async function init() {
         callback({ requestHeaders: headers });
     });
 
-    // Apply initial settings
     await proxyService.apply();
     contentView.webContents.loadURL('https://soundcloud.com/discover');
 
-    // Function to update navigation state in header
     function updateNavigationState() {
         if (headerView && headerView.webContents && contentView) {
             const state = {
@@ -786,7 +731,6 @@ async function init() {
         }
     }
 
-    // Listen for navigation events to update button states
     contentView.webContents.on('did-navigate', () => {
         updateNavigationState();
     });
@@ -795,7 +739,6 @@ async function init() {
         updateNavigationState();
     });
 
-    // Listen for page load events to manage refresh state
     contentView.webContents.on('did-start-loading', () => {
         if (headerView && headerView.webContents) {
             headerView.webContents.send('refresh-state-changed', true);
@@ -834,39 +777,30 @@ async function init() {
         }
     }
 
-    // Track if this is initial load
     let isInitialLoad = true;
 
-    // Setup event handlers
     contentView.webContents.on('did-finish-load', async () => {
         await lastFmService.authenticate();
 
-        // Get the current language from the page FIRST
         await getLanguage();
 
-        // Show notification only on first load
         if (isInitialLoad) {
             notificationManager.show(translationService.translate('pressF1ToOpenSettings'));
             isInitialLoad = false;
         }
 
-        // Update the language in the settings manager
         settingsManager.updateTranslations(translationService);
 
-        // Update navigation state after page load
         updateNavigationState();
 
-        // Initialize navigation controls visibility
         const navigationEnabled = store.get('navigationControlsEnabled', false);
         if (headerView && headerView.webContents) {
             headerView.webContents.send('navigation-controls-toggle', navigationEnabled);
         }
 
-        // Reinitialize after page load/refresh
         await reinitializeAfterPageLoad();
     });
 
-    // Reinitialize everything after page load/refresh
     async function reinitializeAfterPageLoad() {
         try {
             applyThemeToContent(isDarkTheme);
@@ -895,7 +829,6 @@ async function init() {
         }
     }
 
-    // Register settings related events
     ipcMain.on('setting-changed', async (_event, data) => {
         const key = proxyService.transformKey(data.key);
         store.set(key, data.value);
@@ -935,20 +868,20 @@ async function init() {
         } else if (key === 'combinedDisplayMode' || key === 'rpcLinesCount' || key === 'statusLinesCount') {
             const currentSettings = presenceService.getCombinedDisplaySettings();
             const newSettings = { ...currentSettings };
-            
+
             if (key === 'combinedDisplayMode') newSettings.mode = data.value as 'rpc' | 'status' | 'both';
             else if (key === 'rpcLinesCount') newSettings.rpcLines = data.value as number;
             else if (key === 'statusLinesCount') newSettings.statusLines = data.value as number;
-            
+
             presenceService.setCombinedDisplaySettings(newSettings);
         } else if (key === 'minimizeToTray') {
-            // Update tray behavior when setting changes
+
             if (data.value === false && tray) {
-                // If minimize to tray is disabled, destroy the tray
+
                 tray.destroy();
                 tray = null;
             } else if (data.value === true && !tray) {
-                // If minimize to tray is enabled, create the tray
+
                 setupTray();
             }
         } else if (key === 'webhookEnabled') {
@@ -985,7 +918,6 @@ async function init() {
         }
     });
 
-    // Handle applying all changes
     ipcMain.on('apply-changes', async () => {
         if (store.get('proxyEnabled')) {
             await proxyService.apply();
@@ -1000,7 +932,7 @@ async function init() {
         }
 
         if (store.get('discordRichPresence')) {
-            // Refresh presence using the current track info instead of reconnecting
+
             await presenceService.updatePresence(lastTrackInfo as any);
         } else {
             presenceService.clearActivity();
@@ -1009,10 +941,9 @@ async function init() {
 }
 
 function setupThemeHandlers() {
-    // Load initial theme from store
+
     isDarkTheme = store.get('theme', 'dark') === 'dark';
 
-    // Send initial theme to all views
     if (headerView && headerView.webContents) {
         headerView.webContents.send('theme-changed', isDarkTheme);
     }
@@ -1021,13 +952,11 @@ function setupThemeHandlers() {
     }
     applyThemeToContent(isDarkTheme);
 
-    // Listen for theme changes from settings or header
     ipcMain.on('setting-changed', (_, data) => {
         if (data.key === 'theme') {
             isDarkTheme = data.value === 'dark';
             store.set('theme', data.value);
 
-            // Update all views
             if (headerView && headerView.webContents) {
                 headerView.webContents.send('theme-changed', isDarkTheme);
             }
@@ -1045,7 +974,6 @@ function applyThemeToContent(isDark: boolean) {
     const customThemeCSS = themeService.getCurrentCustomThemeCSS();
     const themeColors = themeService.getCurrentThemeColors();
 
-    // Update theme colors for all UI components
     if (notificationManager) {
         notificationManager.setThemeColors(themeColors);
     }
@@ -1056,8 +984,6 @@ function applyThemeToContent(isDark: boolean) {
         headerView.webContents.send('theme-colors-changed', themeColors);
     }
 
-    // Split CSS into sections using comment markers in the theme file:
-    // /* @target all|content|header|settings */ ... /* @end */
     const sections = (function splitSections(css: string | null) {
         const res = { all: '', content: '', header: '', settings: '' } as Record<string, string>;
         if (!css) return res;
@@ -1074,7 +1000,7 @@ function applyThemeToContent(isDark: boolean) {
             res[target] += (res[target] ? '\n' : '') + body;
         }
         if (!any) {
-            // No markers: treat entire CSS as content
+
             res.content = css;
         }
         return res;
@@ -1087,7 +1013,7 @@ function applyThemeToContent(isDark: boolean) {
                 document.documentElement.classList.toggle('theme-dark', ${isDark});
                 document.body.classList.toggle('theme-light', !${isDark});
                 document.body.classList.toggle('theme-dark', ${isDark});
-                
+
                 if (${isDark}) {
                     document.documentElement.style.setProperty('--background-base', '#121212');
                     document.documentElement.style.setProperty('--background-surface', '#212121');
@@ -1097,39 +1023,39 @@ function applyThemeToContent(isDark: boolean) {
                     document.documentElement.style.setProperty('--background-surface', '#f2f2f2');
                     document.documentElement.style.setProperty('--text-base', '#333333');
                 }
-                
+
                 const style = document.createElement('style');
                 style.id = 'custom-scrollbar-style';
                 style.textContent = \`
                     ::-webkit-scrollbar-button {
                         display: none;
                     }
-                    
+
                     ::-webkit-scrollbar {
                         width: 8px;
                         height: 8px;
                         background-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
                     }
-                    
+
                     ::-webkit-scrollbar-track {
                         background-color: transparent;
                     }
-                    
+
                     ::-webkit-scrollbar-thumb {
                         background-color: ${isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'};
                         border-radius: 4px;
                         transition: background-color 0.3s;
                     }
-                    
+
                     ::-webkit-scrollbar-thumb:hover {
                         background-color: ${isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'};
                     }
-                    
+
                     ::-webkit-scrollbar-corner {
                         background-color: transparent;
                     }
                 \`;
-                
+
                 const existingStyle = document.getElementById('custom-scrollbar-style');
                 if (existingStyle) {
                     existingStyle.remove();
@@ -1142,7 +1068,7 @@ function applyThemeToContent(isDark: boolean) {
                     const customStyle = document.createElement('style');
                     customStyle.id = 'custom-theme-style';
                     customStyle.textContent = contentCSS;
-                    
+
                     const existingCustomStyle = document.getElementById('custom-theme-style');
                     if (existingCustomStyle) {
                         existingCustomStyle.remove();
@@ -1165,7 +1091,6 @@ function applyThemeToContent(isDark: boolean) {
 
     contentView.webContents.executeJavaScript(themeScript).catch(console.error);
 
-    // Also inject into header and settings views using their specific sections
     const headerCSS = sections.all + (sections.all && sections.header ? '\n' : '') + sections.header || '';
     if (headerView && headerView.webContents) {
         const headerScript = `
@@ -1274,7 +1199,6 @@ function initializeShortcuts() {
     console.log(`Initialized ${shortcutService.count} keyboard shortcuts`);
 }
 
-// App lifecycle handlers
 app.on('ready', init);
 
 app.on('window-all-closed', function () {
@@ -1307,7 +1231,6 @@ app.on('will-quit', () => {
     }
 });
 
-// focus the window when the second instance is opened.
 app.on('second-instance', () => {
     if (!mainWindow) {
         return;
@@ -1377,7 +1300,6 @@ function setupTranslationHandlers() {
     });
 }
 
-// Setup audio event handler for track updates
 function setupAudioHandler() {
     ipcMain.on('soundcloud:track-update', async (_event, { data: result, reason }: TrackUpdateMessage) => {
         console.debug(`Track update received: ${reason}`);
@@ -1385,7 +1307,6 @@ function setupAudioHandler() {
         const stableResult = stabilizeTrackInfo(result);
         lastTrackInfo = stableResult;
 
-        // Update services only if track is playing
         if (stableResult.isPlaying && stableResult.title && stableResult.author && stableResult.duration) {
             await Promise.all([
                 lastFmService.updateTrackInfo({
@@ -1408,7 +1329,6 @@ function setupAudioHandler() {
             await presenceService.updatePresence(stableResult);
         }
 
-        // Update the rich presence preview in settings
         if (settingsManager) {
             settingsManager.getView().webContents.send('presence-preview-update', stableResult);
         }

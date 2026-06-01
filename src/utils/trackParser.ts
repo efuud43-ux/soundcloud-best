@@ -1,6 +1,5 @@
 import type { ParsedTrackInfo, NormalizedTrackInfo } from '../types';
 
-// Characters: - (hyphen U+002D), – (en dash U+2013), — (em dash U+2014), ― (horizontal bar U+2015)
 const SEPARATOR_REGEX = /(\s+[\u002D\u2013\u2014\u2015]+\s+|[\u002D\u2013\u2014\u2015]{2,})/;
 const INVALID_PATTERNS = [
     /^[^a-zA-Z]*$/,
@@ -43,7 +42,7 @@ export function normalizeTrackInfo(
     useTrackParser: boolean = true,
 ): NormalizedTrackInfo {
     if (!useTrackParser || !titleFromPage) {
-        // Fallback to original behavior
+
         return {
             artist: authorFromPage || 'Unknown Artist',
             track: titleFromPage.replace(/\n.*/, '').trim() || 'Unknown Track',
@@ -56,34 +55,3 @@ export function normalizeTrackInfo(
         track: parsed.track || 'Unknown Track',
     };
 }
-
-// Test function to validate regex parsing
-/*
-function testTrackParser() {
-    const testCases = [
-        "Artist Name - Song Title",              // hyphen with spaces
-        "Artist Name -- Song Title",             // double hyphen with spaces
-        "Artist Name — Song Title",              // em dash with spaces
-        "Artist Name—Song Title",                // em dash without spaces
-        "Just a Song Title",                     // no separator
-        "- No Artist",                           // separator at start
-        "No Song -",                             // separator at end
-        "Her head is so0o0o0o0 rolling (POST-MORTEM MIX)",  // repeated characters (invalid)
-        "FRONT DOOR ENTRY ONLY ---- until I cant feel a thing",  // 2+ separators without spaces (invalid)
-        "a - b",                                 // short but valid
-        "Valid Artist - Valid Track",            // valid parse
-        "",                                      // empty string
-        "Artist\nWith\nNewlines - Song Title"    // with newlines
-    ];
-
-    console.log("=== Track Parser Test Results ===");
-    testCases.forEach((testCase, index) => {
-        const result = parseSoundCloudTitle(testCase);
-        console.log(`${index + 1}. "${testCase}"`);
-        console.log(`   -> Artist: "${result.artist}", Track: "${result.track}"`);
-        console.log("");
-    });
-}
-
-testTrackParser();
-*/

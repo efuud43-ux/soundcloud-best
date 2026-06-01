@@ -14,7 +14,7 @@ export interface ScrobbleState {
 }
 
 function timeStringToSeconds(timeStr: string | undefined): number {
-    if (!timeStr || typeof timeStr !== 'string') return 240; // Default to 4 minutes if no duration
+    if (!timeStr || typeof timeStr !== 'string') return 240; 
     try {
         const isNegative = timeStr.trim().startsWith('-');
         const raw = isNegative ? timeStr.trim().slice(1) : timeStr.trim();
@@ -23,11 +23,11 @@ function timeStringToSeconds(timeStr: string | undefined): number {
         for (const part of parts) {
             seconds = seconds * 60 + (isNaN(part) ? 0 : part);
         }
-        // Use absolute value for track duration
+
         return Math.max(1, Math.abs(seconds));
     } catch (error) {
         console.error('Error parsing time string:', error);
-        return 240; // Default to 4 minutes on error
+        return 240; 
     }
 }
 
@@ -84,7 +84,7 @@ export class LastFmService {
             console.error(data.message);
             return;
         }
-        this.store.set('lastFmSessionKey', data.session.key); // Store the session key
+        this.store.set('lastFmSessionKey', data.session.key); 
     }
 
     public async authenticate(): Promise<void> {
@@ -98,7 +98,7 @@ export class LastFmService {
         }
 
         if (lastFmSessionKey) {
-            return; // Already authenticated
+            return; 
         }
 
         const authUrl = `https://www.last.fm/api/auth/?api_key=${apikey}&cb=https://soundcloud.com/discover`;
@@ -230,7 +230,6 @@ export class LastFmService {
 
         await this.updateNowPlaying(currentTrack);
 
-        // Check for loop (elapsed time <= 3 seconds on same track)
         const elapsedSeconds = timeStringToSeconds(trackInfo.elapsed);
         const isLoop =
             this.currentScrobbleState &&
@@ -244,7 +243,7 @@ export class LastFmService {
             this.currentScrobbleState.title !== currentTrack.title ||
             isLoop
         ) {
-            // Scrobble previous track if it wasn't scrobbled and met criteria
+
             if (
                 this.currentScrobbleState &&
                 !this.currentScrobbleState.scrobbled &&
@@ -256,7 +255,6 @@ export class LastFmService {
                 });
             }
 
-            // Start tracking new track/loop
             this.currentScrobbleState = {
                 artist: currentTrack.author,
                 title: currentTrack.title,
@@ -269,7 +267,7 @@ export class LastFmService {
             !this.currentScrobbleState.scrobbled &&
             shouldScrobble(this.currentScrobbleState)
         ) {
-            // Scrobble current track if it meets criteria
+
             await this.scrobbleTrack({
                 author: this.currentScrobbleState.artist,
                 title: this.currentScrobbleState.title,

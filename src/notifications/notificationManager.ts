@@ -40,18 +40,17 @@ export class NotificationManager {
         this.isDisplaying = true;
         const message = this.queue.shift();
         const bounds = this.parentWindow.getBounds();
-        const width = 400; // increased from 300
-        const height = 70; // increased from 50
+        const width = 400; 
+        const height = 70; 
 
         this.parentWindow.addBrowserView(this.view);
         this.view.setBounds({
             x: Math.floor((bounds.width - width) / 2),
-            y: bounds.height - height - 100, // increased from 20 to move it up
+            y: bounds.height - height - 100, 
             width,
             height,
         });
 
-        // Use theme colors if available
         const backgroundColor = this.themeColors?.surface || '#303030';
         const textColor = this.themeColors?.text || '#ffffff';
 
@@ -110,7 +109,6 @@ export class NotificationManager {
             </script>
         </body>`;
 
-        // Set up one-time IPC listener for this notification
         ipcMain.once('notification-done', () => {
             setTimeout(() => this.displayNext(), 100);
         });

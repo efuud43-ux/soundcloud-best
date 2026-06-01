@@ -1,4 +1,3 @@
-/* eslint-disable */
 const { ipcRenderer } = require('electron');
 
 let isMaximized = false;
@@ -24,12 +23,11 @@ const forcedColorsQuery = window.matchMedia ? window.matchMedia('(forced-colors:
 function applyThemeColors(colors) {
     themeColors = colors;
     if (!colors) {
-        // Reset to default - remove custom properties so CSS theme classes take effect
+
         document.documentElement.style.removeProperty('--header-bg');
         document.documentElement.style.removeProperty('--header-text');
         document.documentElement.style.removeProperty('--header-accent');
 
-        // Also reset inline styles so CSS variables work
         const header = document.querySelector('.custom-header');
         if (header) {
             header.style.removeProperty('background-color');
@@ -38,12 +36,10 @@ function applyThemeColors(colors) {
         return;
     }
 
-    // Apply custom theme colors
     document.documentElement.style.setProperty('--header-bg', colors.primary || colors.background);
     document.documentElement.style.setProperty('--header-text', colors.text);
     document.documentElement.style.setProperty('--header-accent', colors.accent || colors.primary);
 
-    // Update the header background
     const header = document.querySelector('.custom-header');
     if (header) {
         header.style.backgroundColor = colors.surface || colors.background;
@@ -78,7 +74,6 @@ function updateNavigationState(state = {}) {
     if (navButtons.forward) navButtons.forward.classList.toggle('disabled', !canGoForward);
 }
 
-// Helper function to update window controls
 function updateWindowControls() {
     if (process.platform === 'win32') {
         if (!maximizeGlyphEl) {
@@ -88,7 +83,6 @@ function updateWindowControls() {
 
         setIconGlyph(maximizeGlyphEl, isMaximized ? SEGOE_GLYPHS.restore : SEGOE_GLYPHS.maximize);
 
-        // Update the button title
         document.getElementById('maximize-btn').title = isMaximized ? 'Restore' : 'Maximize';
         document.getElementById('maximize-btn').setAttribute('aria-label', isMaximized ? 'Restore' : 'Maximize');
     }
@@ -99,10 +93,9 @@ function setIconGlyph(element, glyph) {
     element.textContent = glyph;
 }
 
-// Initialize icons
 function initializeIcons() {
     try {
-        // Only initialize SVG icons if we're on Windows
+
         if (process.platform === 'win32') {
             minimizeGlyphEl = document.querySelector('#minimize-btn .icon-glyph');
             maximizeGlyphEl = document.querySelector('#maximize-btn .icon-glyph');
@@ -133,10 +126,8 @@ function handleForcedColorsChange() {
     }
 }
 
-// Set platform class on body
 document.body.classList.add(`platform-${process.platform}`);
 
-// Navigation event delegation
 document.querySelector('.navigation-controls')?.addEventListener('click', (e) => {
     const { id } = e.target.closest('.nav-button') || {};
 
@@ -159,7 +150,6 @@ document.querySelector('.navigation-controls')?.addEventListener('click', (e) =>
     }
 });
 
-// Window control event listeners for Windows
 document.getElementById('minimize-btn')?.addEventListener('click', () => {
     ipcRenderer.send('minimize-window');
 });
@@ -174,14 +164,12 @@ document.getElementById('close-btn')?.addEventListener('click', () => {
     ipcRenderer.send('close-window');
 });
 
-// Double click on title bar to maximize/restore
 document.querySelector('.title-bar')?.addEventListener('dblclick', () => {
     ipcRenderer.send('title-bar-double-click');
     isMaximized = !isMaximized;
     updateWindowControls();
 });
 
-// Listen for theme changes
 ipcRenderer.on('theme-changed', (_, isDark) => {
     isDarkTheme = isDark;
     if (isDark) {
@@ -190,7 +178,6 @@ ipcRenderer.on('theme-changed', (_, isDark) => {
         document.documentElement.classList.add('theme-light');
     }
 
-    // If no custom theme colors are applied, reset inline styles to use CSS variables
     if (!themeColors) {
         const header = document.querySelector('.custom-header');
         if (header) {
@@ -200,22 +187,18 @@ ipcRenderer.on('theme-changed', (_, isDark) => {
     }
 });
 
-// Listen for theme color updates
 ipcRenderer.on('theme-colors-changed', (_, colors) => {
     applyThemeColors(colors);
 });
 
-// Listen for navigation state changes
 ipcRenderer.on('navigation-state-changed', (_, state) => {
     updateNavigationState(state);
 });
 
-// Listen for refresh state changes
 ipcRenderer.on('refresh-state-changed', (_, refreshing) => {
     updateNavigationState({ refreshing });
 });
 
-// Listen for navigation controls toggle
 ipcRenderer.on('navigation-controls-toggle', (_, enabled) => {
     const navControls = document.querySelector('.navigation-controls');
     if (navControls) {
@@ -230,12 +213,10 @@ ipcRenderer.on('navigation-controls-toggle', (_, enabled) => {
     }
 });
 
-// Initialize icons and navigation state when the document is loaded
 document.addEventListener('DOMContentLoaded', () => {
     initializeIcons();
     updateNavigationState();
 
-    // Request initial navigation controls state
     ipcRenderer.invoke('get-navigation-controls-enabled').then((enabled) => {
         const navControls = document.querySelector('.navigation-controls');
         if (navControls && enabled) {
@@ -244,14 +225,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Request initial theme colors
     ipcRenderer.invoke('get-theme-colors').then((colors) => {
         if (colors) {
             applyThemeColors(colors);
         }
     });
 
-    // Check window state periodically
     setInterval(() => {
         ipcRenderer.invoke('is-maximized').then((maximized) => {
             if (isMaximized !== maximized) {

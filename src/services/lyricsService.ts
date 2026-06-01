@@ -13,13 +13,7 @@ export class LyricsService {
     private plainLyrics: string = '';
     private hasPlainLyrics: boolean = false;
     private usePlainLyrics: boolean = false;
-    /**
-     * Монотонный счётчик. Каждый новый {@link fetchLyrics} получает уникальный
-     * fetchId. Если в процессе пользователь переключил трек, currentFetchId
-     * обновится, и старый запрос увидит {@link isStale} → не запишет свои
-     * результаты в `lyrics`. Решает race condition: раньше старый fetch мог
-     * перезаписать lyrics уже игравшего нового трека.
-     */
+
     private fetchCounter: number = 0;
     private currentFetchId: number = 0;
     private inFlight: boolean = false;
@@ -71,12 +65,6 @@ export class LyricsService {
             return;
         }
 
-        // Раньше тут стоял `if (this.isLoading) return;`, который ломал смену
-        // трека: если переключали быстрее, чем заканчивался поиск, новый
-        // запрос терялся, а старый мог записать lyrics для уже несуществующего
-        // трека. Сейчас вместо блокировки выдаём новый fetchId — все async-
-        // операции старого запроса увидят несоответствие через isStale() и
-        // тихо отменят запись результата.
         const fetchId = ++this.fetchCounter;
         this.currentFetchId = fetchId;
         const isStale = () => this.currentFetchId !== fetchId;
@@ -92,10 +80,7 @@ export class LyricsService {
 
         try {
             this.inFlight = true;
-            // Самый надёжный быстрый путь: прямой простой запрос lrclib с
-            // лучшим матчем по названию. Без жёсткого scoring это работает
-            // там, где общая цепочка отбрасывает валидные результаты
-            // (например, треки с римскими цифрами или нестандартными символами).
+
             const direct = await this.lrclibGetLyrics(artist, track);
             if (isStale()) return;
             if (direct.synced && direct.lines.length > 0) {
@@ -341,9 +326,7 @@ export class LyricsService {
             const cleanTitle = (t: string) => {
                 let cleaned = t;
                 cleaned = cleaned.replace(/\s+by\s+\S+$/i, '');
-                // Снимаем «приклеенный» хвост от LRC-индикатора, если он
-                // всё-таки протёк сюда из DOM (например, ` LRC` в конце,
-                // ` (LRC)`, ` [LRC]`).
+
                 cleaned = cleaned.replace(/\s*[\(\[]\s*LRC\s*[\)\]]/gi, '');
                 cleaned = cleaned.replace(/\s+LRC\s*$/i, '');
                 const keywords = ['slowed', 'reverb', 'speed up', 'sped up', 'nightcore', 'remix', 'cover', 'mix', 'edit', 'tik tok', 'tiktok', 'official', 'audio', 'video', 'lyrics', 'bass boosted', 'extended', 'radio edit', '8d', 'lofi', 'lo-fi', 'acoustic', 'live', 'instrumental'];
@@ -421,13 +404,6 @@ export class LyricsService {
             const fixedTitle = fixTypos(track);
             const fixedCleanTitle = fixTypos(cleanedTitle);
 
-            // Fast path: верхние 3-5 наиболее вероятных запросов идут
-            // параллельно. Раньше lyrics могли искаться 5-10+ секунд (каждый
-            // fetchUrl последовательно × 20+ попыток), поэтому текст
-            // появлялся только к середине трека. Параллельная гонка решает
-            // 90% случаев за один-два сетевых RTT. tryFetch внутри проверяет
-            // hasLyrics в начале и isStale перед записью, так что одновременная
-            // запись не страшна — только один сможет «выиграть».
             if (mainArtist) {
                 const fastQueries: Array<[string, string]> = [];
                 const seen = new Set<string>();
@@ -449,8 +425,6 @@ export class LyricsService {
                 if (fastResults.some((r) => r)) return;
             }
 
-            // Второй вариант поиска: YouTube Music timed lyrics. Запускается,
-            // когда быстрый lrclib-проход не нашёл синхронизированный текст.
             if (await this.fetchFromYouTube(mainArtist || artist, track, fetchId)) return;
             if (isStale()) return;
             if (cleanedTitle !== track && (await this.fetchFromYouTube(mainArtist || artist, cleanedTitle, fetchId))) return;
@@ -602,13 +576,6 @@ export class LyricsService {
         }
     }
 
-    /**
-     * Второй источник текста — YouTube Music timed lyrics (как в ytmusicapi):
-     *   1. search → videoId наиболее подходящего трека
-     *   2. next   → browseId вкладки «Lyrics» (начинается с MPLYt…)
-     *   3. browse в mobile-контексте (ANDROID_MUSIC) → timedLyricsData с
-     *      посекундными таймкодами → LyricLine[].
-     */
     private async fetchFromYouTube(artist: string, track: string, fetchId?: number): Promise<boolean> {
         try {
             const isStale = () => fetchId !== undefined && this.currentFetchId !== fetchId;
@@ -625,7 +592,7 @@ export class LyricsService {
                 console.log('[LyricsService] YouTube synced lyrics, lines:', this.lyrics.length);
                 return true;
             }
-            // Обычный текст сохраняем, но даём lrclib шанс найти синхронизированный.
+
             if (!res.synced && res.lines.length > 0 && !this.hasPlainLyrics) {
                 this.plainLyrics = res.lines.map((l) => l.text).join('\n');
                 this.hasPlainLyrics = true;
@@ -637,10 +604,6 @@ export class LyricsService {
         }
     }
 
-    /**
-     * Чистый запрос текста только с YouTube Music (не меняет состояние RPC).
-     * Используется явным выбором источника в экранном оверлее.
-     */
     public async ytGetLyrics(artist: string, track: string): Promise<{ synced: boolean; lines: LyricLine[] }> {
         const empty = { synced: false, lines: [] as LyricLine[] };
         try {
@@ -684,11 +647,6 @@ export class LyricsService {
         }
     }
 
-    /**
-     * Чистый запрос текста только с lrclib (не меняет состояние RPC).
-     * Стратегия: несколько попыток с очисткой названия и разными эндпоинтами,
-     * мягкий scoring (хватает 50% совпадения слов).
-     */
     public async lrclibGetLyrics(artist: string, track: string): Promise<{ synced: boolean; lines: LyricLine[] }> {
         const empty = { synced: false, lines: [] as LyricLine[] };
         try {
@@ -699,7 +657,7 @@ export class LyricsService {
                 let c = t || '';
                 c = c.replace(/\s+by\s+\S.*$/i, '');
                 c = c.replace(/[\(\[][^\)\]]*\b(prod\.?|feat\.?|ft\.?|featuring|remix|rmx|cover|slowed|reverb|sped\s*up|nightcore|edit|mix|version|live|radio|extended|acoustic|instrumental|official|audio|video|lyrics|8d|lofi|lo[- ]?fi)\b[^\)\]]*[\)\]]/gi, '');
-                c = c.replace(/[\(\[][^\)\]]*[\)\]]/g, ''); // вообще все скобочные хвосты
+                c = c.replace(/[\(\[][^\)\]]*[\)\]]/g, ''); 
                 c = c.replace(/\s+/g, ' ').trim();
                 return c || t;
             };
@@ -723,7 +681,7 @@ export class LyricsService {
 
             const pick = (arr: any[]) => {
                 let best: any = null;
-                let bs = 0.4; // минимальный порог: половина слов или artist match
+                let bs = 0.4; 
                 for (const r of arr) {
                     const sc = score(r);
                     if (sc > bs) { bs = sc; best = r; }
@@ -745,7 +703,6 @@ export class LyricsService {
                 return empty;
             };
 
-            // Эндпоинт 1: /api/get (точный — exact match по нормализованным title+artist на сервере).
             for (const a of artists.filter(Boolean)) {
                 for (const t of tracks) {
                     const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`;
@@ -757,11 +714,10 @@ export class LyricsService {
                             const out = decode(r);
                             if (out.lines.length > 0) return out;
                         }
-                    } catch { /* not found / 404 */ }
+                    } catch {  }
                 }
             }
 
-            // Эндпоинт 2: /api/search с раздельными полями.
             for (const a of artists) {
                 for (const t of tracks) {
                     const params = a
@@ -776,11 +732,10 @@ export class LyricsService {
                         if (synced) { const out = decode(synced); if (out.lines.length > 0) return out; }
                         const plain = pick(arr.filter((r: any) => r.plainLyrics));
                         if (plain) { const out = decode(plain); if (out.lines.length > 0) return out; }
-                    } catch { /* ignore */ }
+                    } catch {  }
                 }
             }
 
-            // Эндпоинт 3: /api/search?q= общим запросом.
             for (const t of tracks) {
                 const q = encodeURIComponent(`${artist} ${t}`.trim());
                 const resp = await this.fetchUrl(`https://lrclib.net/api/search?q=${q}`);
@@ -792,7 +747,7 @@ export class LyricsService {
                     if (synced) { const out = decode(synced); if (out.lines.length > 0) return out; }
                     const plain = pick(arr.filter((r: any) => r.plainLyrics));
                     if (plain) { const out = decode(plain); if (out.lines.length > 0) return out; }
-                } catch { /* ignore */ }
+                } catch {  }
             }
 
             return empty;
@@ -814,7 +769,7 @@ export class LyricsService {
     }
 
     private async ytSearchVideoId(query: string, track: string): Promise<string | null> {
-        // Фильтр «Songs» → студийные песни (а не live/видео-версии без текста).
+
         let resp = await this.ytPost('search', { query, params: 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D' });
         let items = resp ? LyricsService.collectKey(resp, 'musicResponsiveListItemRenderer') : [];
         if (items.length === 0) {
@@ -848,8 +803,6 @@ export class LyricsService {
             }
         }
 
-        // Если ни одно слово названия не совпало — скорее всего не тот трек,
-        // лучше отдать поиск дальше по цепочке, чем подставить чужой текст.
         if (trackWords.size > 0 && bestScore <= 0) return null;
         return bestId;
     }
@@ -902,7 +855,7 @@ export class LyricsService {
 
             let data = '';
             const timeout = setTimeout(() => {
-                try { request.abort(); } catch { /* ignore */ }
+                try { request.abort(); } catch {  }
                 finish(null);
             }, 6000);
 
@@ -968,11 +921,8 @@ export class LyricsService {
                 resolve(value);
             };
 
-            // Без таймаута раньше один зависший запрос (DNS, сетевой стол и
-            // т.п.) блокировал всю последовательность fallback-попыток в
-            // fetchLyrics — поэтому lyrics могли «найтись» уже к концу трека.
             const timeout = setTimeout(() => {
-                try { request.abort(); } catch { /* ignore */ }
+                try { request.abort(); } catch {  }
                 finish(null);
             }, timeoutMs);
 
@@ -1100,9 +1050,7 @@ export class LyricsService {
         this.hasPlainLyrics = false;
         this.lastTrack = '';
         this.lastArtist = '';
-        // Инвалидируем все идущие fetch — currentFetchId меняется на
-        // следующее значение, ни один уже запущенный запрос не сможет
-        // совпасть и записать результат.
+
         this.currentFetchId = ++this.fetchCounter;
     }
 

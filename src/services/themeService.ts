@@ -82,7 +82,6 @@ export class ThemeService {
         try {
             if (!existsSync(this.themesPath)) return;
 
-            // Close any previous watcher
             if (this.stopWatching) {
                 this.stopWatching();
                 this.stopWatching = undefined;
@@ -91,16 +90,15 @@ export class ThemeService {
             const watcher = watch(this.themesPath, { persistent: true }, (eventType, filename) => {
                 if (!filename || extname(filename).toLowerCase() !== '.css') return;
 
-                // Debounce rapid events per file
                 const themeName = basename(filename, '.css');
                 const filePath = join(this.themesPath, filename);
 
                 const handleChange = () => {
                     try {
                         if (eventType === 'rename') {
-                            // File added or removed or renamed – refresh all
+
                             this.refreshThemes();
-                            // If current theme was removed, clear it
+
                             if (this.currentCustomTheme && !this.customThemes.has(this.currentCustomTheme)) {
                                 this.currentCustomTheme = null;
                                 this.store.delete('customTheme');
@@ -108,14 +106,13 @@ export class ThemeService {
                                 return;
                             }
                         } else if (eventType === 'change') {
-                            // Update just this file
+
                             if (existsSync(filePath)) {
                                 const css = readFileSync(filePath, 'utf-8');
                                 this.customThemes.set(themeName, { name: themeName, filePath, css });
                             }
                         }
 
-                        // If the changed/added file is the current theme, notify listeners
                         if (this.currentCustomTheme && this.currentCustomTheme === themeName) {
                             this.emitter.emit('custom-theme-updated', themeName);
                         }
@@ -124,7 +121,6 @@ export class ThemeService {
                     }
                 };
 
-                // Minimal debounce using microtask queue (avoids extra timers and still coalesces bursts)
                 Promise.resolve().then(handleChange);
             });
 
@@ -190,7 +186,7 @@ export class ThemeService {
 
             this.currentCustomTheme = themeName;
             this.store.set('customTheme', themeName);
-            // Notify listeners so UI can update immediately
+
             this.emitter.emit('custom-theme-updated', themeName);
 
             console.log(`Applied custom theme: ${themeName}`);
@@ -205,7 +201,7 @@ export class ThemeService {
         try {
             this.currentCustomTheme = null;
             this.store.delete('customTheme');
-            // Notify listeners to remove style
+
             this.emitter.emit('custom-theme-updated', null);
 
             console.log('Removed custom theme');
@@ -247,7 +243,6 @@ export class ThemeService {
         this.loadCustomThemes();
     }
 
-    // Subscribe to hot-reload notifications when current theme CSS changes
     public onCustomThemeUpdated(listener: (themeName: string | null) => void): () => void {
         this.emitter.on('custom-theme-updated', listener);
         return () => this.emitter.off('custom-theme-updated', listener);

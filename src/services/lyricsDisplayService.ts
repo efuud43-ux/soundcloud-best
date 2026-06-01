@@ -61,9 +61,6 @@ export class LyricsDisplayService {
         };
     }
 
-
-    // ==================== Public API ====================
-
     public resetState(): void {
         this.karaokeState = this.createInitialKaraokeState();
     }
@@ -80,9 +77,6 @@ export class LyricsDisplayService {
         return { ...this.karaokeState };
     }
 
-    /**
-     * Truncates string to maxLength characters, adding "..." if truncated
-     */
     public shortenString(str: string, maxLength: number = MAX_STRING_LENGTH): string {
         if (!str) return '';
         if (str.length <= maxLength) {
@@ -94,9 +88,6 @@ export class LyricsDisplayService {
         return str.substring(0, maxLength - 3) + '...';
     }
 
-    /**
-     * Main entry point for formatting lyrics based on current mode
-     */
     public formatLyrics(
         currentLine: LyricLine | null,
         prevLine: LyricLine | null,
@@ -129,42 +120,26 @@ export class LyricsDisplayService {
         }
     }
 
-    // ==================== Line Mode ====================
-
-    /**
-     * Simple line mode: prefix with ♪ symbol
-     */
     public formatLineMode(text: string): string {
         return this.shortenString(`♪ ${text}`);
     }
 
-    // ==================== Multiline Mode ====================
-
-    /**
-     * Multiline mode: shows prev | ♪ current | next
-     */
     public formatMultilineMode(prev: string, current: string, next: string): string {
         const parts: string[] = [];
-        
+
         if (prev) {
             parts.push(this.shortenString(prev));
         }
-        
+
         parts.push(this.shortenString(`♪ ${current}`));
-        
+
         if (next) {
             parts.push(this.shortenString(next));
         }
-        
+
         return parts.join('\n');
     }
 
-
-    // ==================== Karaoke Mode ====================
-
-    /**
-     * Karaoke mode: progressively reveals text
-     */
     private formatKaraoke(
         currentLine: LyricLine,
         nextLine: LyricLine | null,
@@ -176,9 +151,6 @@ export class LyricsDisplayService {
         return this.shortenString(formatted);
     }
 
-    /**
-     * Calculate how much of the line should be revealed
-     */
     public calculateKaraokeProgress(
         currentLine: LyricLine,
         nextLine: LyricLine | null,
@@ -190,18 +162,14 @@ export class LyricsDisplayService {
         const wordCount = Math.max(1, words.length);
         const totalChars = text.length;
 
-        // Calculate line duration
         const lineDuration = this.calculateLineDuration(currentLine, nextLine, wordCount);
-        
-        // Calculate progress (0 to 1)
+
         const elapsedInLine = Math.max(0, elapsedMs - currentLine.timeMs);
         const progress = Math.min(1, elapsedInLine / lineDuration);
 
-        // Calculate revealed words/chars based on progress
         let showWords = Math.max(1, Math.ceil(progress * wordCount));
         let showChars = Math.max(1, Math.ceil(progress * totalChars));
 
-        // Handle line change - reset state
         if (lineIndex !== this.karaokeState.lastLineIdx) {
             this.karaokeState.lastLineIdx = lineIndex;
             this.karaokeState.lastShowWords = 0;
@@ -210,7 +178,6 @@ export class LyricsDisplayService {
             this.karaokeState.showingCustomWord = true;
         }
 
-        // Track word/char changes for custom text animation
         const { showCustom, transitionChars } = this.updateKaraokeAnimation(
             showWords,
             showChars,
@@ -220,29 +187,22 @@ export class LyricsDisplayService {
         return { showWords, showChars, showCustom, transitionChars };
     }
 
-    /**
-     * Calculate how long a line should be displayed
-     */
     private calculateLineDuration(
         currentLine: LyricLine,
         nextLine: LyricLine | null,
         wordCount: number
     ): number {
         if (nextLine) {
-            // Use time until next line, with some buffer
+
             const timeToNext = nextLine.timeMs - currentLine.timeMs;
             const buffer = Math.min(200, timeToNext * 0.1);
             return Math.max(MIN_LINE_DURATION_MS, Math.min(MAX_LINE_DURATION_MS, timeToNext - buffer));
         }
-        
-        // No next line - estimate based on word count
+
         const estimatedDuration = wordCount * 400;
         return Math.max(DEFAULT_LINE_DURATION_MS, Math.min(MAX_LINE_DURATION_MS, estimatedDuration));
     }
 
-    /**
-     * Update animation state for custom text transitions
-     */
     private updateKaraokeAnimation(
         showWords: number,
         showChars: number,
@@ -251,7 +211,6 @@ export class LyricsDisplayService {
         const isCharMode = this.config.karaokeRevealMode === 'char';
         const now = Date.now();
 
-        // Detect new word/char reveal
         if (isCharMode) {
             if (showChars > this.karaokeState.lastShowChars) {
                 this.karaokeState.lastWordChangeTime = now;
@@ -266,7 +225,6 @@ export class LyricsDisplayService {
             }
         }
 
-        // Calculate custom text display
         let showCustom = false;
         let transitionChars = 0;
 
@@ -287,7 +245,7 @@ export class LyricsDisplayService {
                     this.karaokeState.showingCustomWord = false;
                 }
             } else {
-                // Instant transition
+
                 if (timeSinceChange < CUSTOM_DISPLAY_TIME_MS) {
                     showCustom = true;
                 } else {
@@ -299,13 +257,10 @@ export class LyricsDisplayService {
         return { showCustom, transitionChars };
     }
 
-    /**
-     * Get the current word being revealed in char mode
-     */
     private getCurrentWordFromChars(showChars: number, words: string[]): string {
         let charCount = 0;
         for (const word of words) {
-            charCount += word.length + 1; // +1 for space
+            charCount += word.length + 1; 
             if (charCount >= showChars) {
                 return word;
             }
@@ -313,27 +268,20 @@ export class LyricsDisplayService {
         return words[words.length - 1] || '';
     }
 
-
-    /**
-     * Build the final karaoke text string
-     */
     public buildKaraokeText(lineText: string, result: KaraokeResult): string {
         const words = lineText.split(' ').filter(w => w.length > 0);
         const isCharMode = this.config.karaokeRevealMode === 'char';
         const customText = this.config.karaokeCustomText;
         const isCustomMode = this.config.mode === 'karaoke_custom' && customText;
 
-        // Handle custom text display
         if (isCustomMode && result.showCustom) {
             return this.buildCustomTextDisplay(lineText, words, result, isCharMode);
         }
 
-        // Handle character transition
         if (isCustomMode && result.transitionChars > 0 && this.config.karaokeCustomTransition === 'char') {
             return this.buildTransitionDisplay(lineText, words, result, isCharMode);
         }
 
-        // Normal reveal
         if (isCharMode) {
             const revealed = lineText.substring(0, result.showChars);
             return `♪ ${revealed}`;
@@ -343,9 +291,6 @@ export class LyricsDisplayService {
         return `♪ ${revealedWords}`;
     }
 
-    /**
-     * Build display when showing custom text
-     */
     private buildCustomTextDisplay(
         lineText: string,
         words: string[],
@@ -357,12 +302,11 @@ export class LyricsDisplayService {
         if (isCharMode) {
             const prevText = lineText.substring(0, Math.max(0, result.showChars - 1));
             const lastChar = prevText.length > 0 ? prevText[prevText.length - 1] : '';
-            
+
             if (lastChar === ' ' || prevText.length === 0) {
                 return `♪ ${prevText}${customText}`;
             }
-            
-            // Find last space to insert custom text properly
+
             const lastSpaceIdx = prevText.lastIndexOf(' ');
             if (lastSpaceIdx >= 0) {
                 return `♪ ${prevText.substring(0, lastSpaceIdx + 1)}${customText}`;
@@ -370,14 +314,10 @@ export class LyricsDisplayService {
             return `♪ ${customText}`;
         }
 
-        // Word mode
         const prevWords = words.slice(0, Math.max(0, result.showWords - 1)).join(' ');
         return prevWords ? `♪ ${prevWords} ${customText}` : `♪ ${customText}`;
     }
 
-    /**
-     * Build display during character transition
-     */
     private buildTransitionDisplay(
         lineText: string,
         words: string[],
@@ -396,7 +336,6 @@ export class LyricsDisplayService {
             return `♪ ${prevText}${partialWord}${customRemainder}`;
         }
 
-        // Word mode
         const prevWords = words.slice(0, Math.max(0, result.showWords - 1)).join(' ');
         const currentWord = words[result.showWords - 1] || '';
         const partialWord = currentWord.substring(0, result.transitionChars);

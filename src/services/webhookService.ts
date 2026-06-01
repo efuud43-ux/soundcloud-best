@@ -149,7 +149,6 @@ export class WebhookService {
 
         const triggerPercentage = (this.store.get('webhookTriggerPercentage') as number) || 50;
 
-        // Check for loop (elapsed time <= 3 seconds on same track)
         const elapsedSeconds = timeStringToSeconds(trackInfo.elapsed);
         const isLoop =
             this.currentWebhookState &&

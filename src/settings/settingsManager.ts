@@ -21,21 +21,17 @@ export class SettingsManager {
         });
         this.translationService = translationService;
 
-        // Add view immediately but keep it off-screen
         this.parentWindow.addBrowserView(this.view);
         this.view.setBounds({ x: 0, y: -10000, width: 0, height: 0 });
 
-        // Add resize listener
         this.parentWindow.on('resize', () => {
             if (this.isVisible) {
                 this.updateBounds();
             }
         });
 
-        // Preload content
         this.view.webContents.loadURL(`data:text/html,${encodeURIComponent(this.getHtml())}`);
 
-        // Listen for hide message from the panel
         this.view.webContents.on('console-message', (_, __, message) => {
             if (message === 'hidePanel') {
                 this.isVisible = false;
@@ -54,8 +50,8 @@ export class SettingsManager {
 
     private updateBounds(): void {
         const bounds = this.parentWindow.getBounds();
-        const width = Math.min(500, Math.floor(bounds.width * 0.4)); // 40% of window width, max 500px
-        const HEADER_HEIGHT = 32; // Height of the window controls
+        const width = Math.min(500, Math.floor(bounds.width * 0.4)); 
+        const HEADER_HEIGHT = 32; 
 
         this.view.setBounds({
             x: bounds.width - width,
@@ -126,13 +122,13 @@ export class SettingsManager {
                 opacity: 1 !important;
                 visibility: visible !important;
             }
-            
+
             ::-webkit-scrollbar-track {
                 background-color: transparent;
                 opacity: 1 !important;
                 visibility: visible !important;
             }
-            
+
             ::-webkit-scrollbar-thumb {
                 background-color: var(--scrollbar-thumb);
                 border-radius: 4px;
@@ -141,11 +137,11 @@ export class SettingsManager {
                 opacity: 1 !important;
                 visibility: visible !important;
             }
-            
+
             ::-webkit-scrollbar-thumb:hover {
                 background-color: var(--scrollbar-thumb-hover);
             }
-            
+
             ::-webkit-scrollbar-corner {
                 background-color: transparent;
             }
@@ -371,7 +367,7 @@ export class SettingsManager {
             body::-webkit-scrollbar {
                 width: 8px;
             }
-            
+
             /* Enable overlay scrollbar */
             @media screen and (min-width: 0\0) {
                 body {
@@ -465,7 +461,7 @@ export class SettingsManager {
                 margin-top: 12px;
                 animation: slideIn 0.3s ease;
             }
-            
+
             @keyframes slideIn {
                 from {
                     opacity: 0;
@@ -1027,7 +1023,7 @@ export class SettingsManager {
                     </label>
                 </div>
                 <div class="description" data-i18n="richPresencePreviewDescription">${this.translationService.translate('richPresencePreviewDescription')}</div>
-                
+
                 <!-- Rich Presence Preview -->
                 <div class="preview-container" id="presencePreviewContainer" style="display: ${this.store.get('richPresencePreviewEnabled', false) ? 'block' : 'none'
             }">
@@ -1147,12 +1143,12 @@ export class SettingsManager {
                     const themes = await ipcRenderer.invoke('get-custom-themes');
                     const currentTheme = await ipcRenderer.invoke('get-current-custom-theme');
                     const selector = document.getElementById('customThemeSelector');
-                    
+
                     // Clear existing options except "No Theme"
                     while (selector.children.length > 1) {
                         selector.removeChild(selector.lastChild);
                     }
-                    
+
                     // Add theme options
                     themes.forEach(theme => {
                         const option = document.createElement('option');
@@ -1160,7 +1156,7 @@ export class SettingsManager {
                         option.textContent = theme.name;
                         selector.appendChild(option);
                     });
-                    
+
                     // Set current theme
                     selector.value = currentTheme || 'none';
                 } catch (error) {
@@ -1222,7 +1218,7 @@ export class SettingsManager {
                 const preset = e.target.value;
                 const hostInput = document.getElementById('proxyHost');
                 const portInput = document.getElementById('proxyPort');
-                
+
                 if (preset !== 'custom' && proxyPresets[preset]) {
                     hostInput.value = proxyPresets[preset].host;
                     portInput.value = proxyPresets[preset].port;
@@ -1284,7 +1280,7 @@ export class SettingsManager {
                 if (value < 0) value = 0;
                 if (value > 100) value = 100;
                 if (isNaN(value)) value = 50; // Default fallback
-                
+
                 e.target.value = value; // Update the input field
                 ipcRenderer.send('setting-changed', { key: 'webhookTriggerPercentage', value: value });
             });
@@ -1294,7 +1290,7 @@ export class SettingsManager {
                 const toggle = e.currentTarget;
                 const content = document.getElementById('webhookExampleContent');
                 const isExpanded = content.style.display === 'block';
-                
+
                 if (isExpanded) {
                     content.style.display = 'none';
                     toggle.classList.remove('expanded');
@@ -1421,8 +1417,6 @@ export class SettingsManager {
             document.getElementById('usePlainLyrics')?.addEventListener('change', (e) => {
                 ipcRenderer.send('setting-changed', { key: 'usePlainLyrics', value: e.target.checked });
             });
-
-
 
             document.getElementById('useArtistInStatusLineToggle').addEventListener('change', (e) => {
                 const useState = e.target.checked;
@@ -1595,7 +1589,7 @@ export class SettingsManager {
 
             function startProgressUpdate(trackInfo) {
                 clearInterval(progressInterval);
-                
+
                 if (!trackInfo.isPlaying || !trackInfo.elapsed || !trackInfo.duration) {
                     return;
                 }
@@ -1615,7 +1609,7 @@ export class SettingsManager {
                     if (progressFill) {
                         progressFill.style.width = \`\${progress}%\`;
                     }
-                    
+
                     if (currentTimeEl) {
                         currentTimeEl.textContent = formatTime(currentElapsed);
                     }
@@ -1628,7 +1622,7 @@ export class SettingsManager {
 
                 // Update immediately
                 updateProgress();
-                
+
                 // Update every second
                 progressInterval = setInterval(updateProgress, 1000);
             }
@@ -1776,7 +1770,7 @@ export class SettingsManager {
 
             function startPreviewProgressUpdate(trackInfo) {
                 clearInterval(previewProgressInterval);
-                
+
                 if (!trackInfo.isPlaying || !trackInfo.elapsed || !trackInfo.duration) {
                     return;
                 }
@@ -1796,7 +1790,7 @@ export class SettingsManager {
                     if (progressFill) {
                         progressFill.style.width = \`\${progress}%\`;
                     }
-                    
+
                     if (currentTimeEl) {
                         currentTimeEl.textContent = formatTimePreview(currentElapsed);
                     }
@@ -1809,7 +1803,7 @@ export class SettingsManager {
 
                 // Update immediately
                 updatePreviewProgress();
-                
+
                 // Update every second
                 previewProgressInterval = setInterval(updatePreviewProgress, 1000);
             }
@@ -1877,7 +1871,7 @@ export class SettingsManager {
             document.body.style.opacity;
             document.body.classList.add('visible');
         `);
-        // Trigger translation updates when panel is shown
+
         this.getView().webContents.send('update-translations');
     }
 
@@ -1892,7 +1886,7 @@ export class SettingsManager {
 
     public setThemeColors(colors: ThemeColors | null): void {
         if (!colors) {
-            // Reset to default theme colors
+
             this.view.webContents.executeJavaScript(`
                 document.documentElement.style.removeProperty('--bg-primary');
                 document.documentElement.style.removeProperty('--bg-secondary');
@@ -1902,7 +1896,6 @@ export class SettingsManager {
             return;
         }
 
-        // Apply custom theme colors
         this.view.webContents
             .executeJavaScript(
                 `
