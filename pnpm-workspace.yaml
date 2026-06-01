@@ -1,0 +1,10 @@
+allowBuilds:
+  electron: false
+  electron-winstaller: false
+  register-scheme: false
+blockExoticSubdeps: false
+onlyBuiltDependencies:
+  - core-js
+  - electron
+  - electron-winstaller
+  - register-scheme
